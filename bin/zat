@@ -1,4 +1,9 @@
 #!/usr/bin/env ruby
+
+# add Gems from Gemfile to the loadpath (for developing ZAS locally)
+ENV['BUNDLE_GEMFILE'] ||= File.expand_path("../../Gemfile", __FILE__)
+require 'bundler/setup'
+
 lib_dir = File.expand_path('../../lib', __FILE__)
 $LOAD_PATH << lib_dir unless $LOAD_PATH.include?(lib_dir)
 require 'zendesk_apps_tools'
