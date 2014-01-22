@@ -102,12 +102,14 @@ module ZendeskAppsTools
       settings = settings_helper.get_settings_from(self, manifest[:parameters])
 
       require 'zendesk_apps_tools/server'
-      ZendeskAppsTools::Server.tap do |server|
-        server.set :port, options[:port]
-        server.set :root, options[:path]
-        server.set :parameters, settings
-        server.run!
-      end
+
+      WEBRICK_OPTIONS[:Port] = options[:port]
+      ZendeskAppsTools::Server.set :port, options[:port]
+      WEBRICK_OPTIONS[:DocumentRoot] = options[:path]
+      ZendeskAppsTools::Server.set :root, options[:path]
+
+      ZendeskAppsTools::Server.set :parameters, settings
+      Rack::Handler::WEBrick.run ZendeskAppsTools::Server, WEBRICK_OPTIONS
     end
 
     desc "create", "Create app on your account"

@@ -59,7 +59,7 @@ GEM
     multi_test (0.0.1)
     multipart-post (1.2.0)
     rack (1.5.2)
-    rack-protection (1.5.1)
+    rack-protection (1.5.2)
       rack
     rake (10.1.1)
     rspec (2.12.0)
