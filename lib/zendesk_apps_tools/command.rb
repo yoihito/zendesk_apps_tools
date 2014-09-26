@@ -5,8 +5,10 @@ require 'net/http'
 require 'json'
 require 'faraday'
 require 'io/console'
+require 'os'
 
 require 'zendesk_apps_tools/command_helpers'
+require 'zendesk_apps_tools/self_signed_certificate'
 
 module ZendeskAppsTools
 
@@ -95,12 +97,23 @@ module ZendeskAppsTools
     method_option :path, :default => DEFAULT_SERVER_PATH, :required => false, :aliases => "-p"
     method_option :config, :default => DEFAULT_CONFIG_PATH, :required => false, :aliases => "-c"
     method_option :port, :default => DEFAULT_SERVER_PORT, :required => false
+    method_option :ssl, :required => false, :type => :boolean, :desc => "Enable SSL"
     method_option :ssl_cert, :required => false, :desc => "Path to SSL certificate file"
     method_option :ssl_key, :required => false, :desc => "Path to SSL private key file"
     def server
-      if (options[:ssl_cert] && !options[:ssl_key]) ||
-         (!options[:ssl_cert] && options[:ssl_key])
-         raise ArgumentError.new("Either both --ssl-key and --ssl-cert options should be specified or neither")
+      ssl_certificate = options[:ssl_cert]
+      ssl_key = options[:ssl_key]
+
+      if (options[:ssl_cert] && !options[:ssl_key]) || (!options[:ssl_cert] && options[:ssl_key])
+        raise ArgumentError.new("Either both --ssl-key and --ssl-cert options should be specified or neither")
+      end
+
+      if options[:ssl] && !ssl_certificate && !ssl_key
+        unless File.exists?(localhost_ssl_cert_path) && File.exists?(localhost_ssl_key_path)
+          generate_and_trust_certificate
+        end
+        ssl_certificate = localhost_ssl_cert_path.to_s
+        ssl_key = localhost_ssl_key_path.to_s
       end
 
       setup_path(options[:path])
@@ -120,11 +133,11 @@ module ZendeskAppsTools
         server.set :parameters, settings
         server.set :server, 'thin'
         server.run! do |server|
-          if options[:ssl_cert] && options[:ssl_key]
+          if options[:ssl] != false && ssl_certificate && ssl_key
             server.ssl = true
             server.ssl_options = {
-              :cert_chain_file => options[:ssl_cert],
-              :private_key_file => options[:ssl_key],
+              :cert_chain_file => ssl_certificate,
+              :private_key_file => ssl_key,
               :verify_peer => false
             }
           end
@@ -175,6 +188,58 @@ module ZendeskAppsTools
 
     def setup_path(path)
       @destination_stack << relative_to_original_destination_root(path) unless @destination_stack.last == path
+    end
+
+    def config_dir
+      @config_dir ||= begin
+        if OS.mac?
+          File.join(Dir.home, 'Library/Application Support/ZAT')
+        elsif OS.windows?
+          File.join(ENV['APPDATA'] || Dir.home, 'ZAT')
+        elsif ENV['XDG_CONFIG_HOME']
+          File.join(ENV['XDG_CONFIG_HOME'], 'zat')
+        else
+          File.join(Dir.home, '.zat')
+        end
+      end
+      Dir.mkdir @config_dir unless Dir.exists? @config_dir
+      @config_dir
+    end
+
+    def localhost_ssl_cert_path
+      File.join(config_dir, 'localhost.pem')
+    end
+
+    def localhost_ssl_key_path
+      File.join(config_dir, 'localhost.key')
+    end
+
+    def generate_certificate
+      puts "Generating certificate..."
+      certificate = SelfSignedCertificate.new
+      File.write(localhost_ssl_cert_path, certificate.self_signed_pem)
+      File.write(localhost_ssl_key_path, certificate.private_key)
+    end
+
+    def trust_certificate
+      puts "Trusting certificate..."
+      if OS.mac?
+        exec_cmd("sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain \"#{localhost_ssl_cert_path}\"")
+      elsif OS.windows?
+        exec_cmd("certutil.exe -addstore -user root \"#{localhost_ssl_cert_path}\"")
+      else
+        exec_cmd("certutil -A -d sql:~/.pki/nssdb -t C -n localhost -i \"#{localhost_ssl_cert_path}\"")
+      end
+    end
+
+    def exec_cmd(cmd)
+      puts "> #{cmd}"
+      system(cmd)
+    end
+
+    def generate_and_trust_certificate
+      generate_certificate
+      trust_certificate
     end
 
   end

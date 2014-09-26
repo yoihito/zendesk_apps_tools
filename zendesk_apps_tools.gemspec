@@ -16,6 +16,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'rubyzip',     '~> 0.9.1'
   s.add_runtime_dependency 'sinatra',     '~> 1.3.4'
   s.add_runtime_dependency 'faraday',     '~> 0.8.7'
+  s.add_runtime_dependency 'os',          '~> 0.9.4'
   s.add_runtime_dependency 'zendesk_apps_support', '~> 1.15.0'
 
   s.add_development_dependency 'cucumber'
