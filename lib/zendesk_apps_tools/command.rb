@@ -95,7 +95,14 @@ module ZendeskAppsTools
     method_option :path, :default => DEFAULT_SERVER_PATH, :required => false, :aliases => "-p"
     method_option :config, :default => DEFAULT_CONFIG_PATH, :required => false, :aliases => "-c"
     method_option :port, :default => DEFAULT_SERVER_PORT, :required => false
+    method_option :ssl_cert, :required => false, :desc => "Path to SSL certificate file"
+    method_option :ssl_key, :required => false, :desc => "Path to SSL private key file"
     def server
+      if (options[:ssl_cert] && !options[:ssl_key]) ||
+         (!options[:ssl_cert] && options[:ssl_key])
+         raise ArgumentError.new("Either both --ssl-key and --ssl-cert options should be specified or neither")
+      end
+
       setup_path(options[:path])
       manifest = app_package.manifest_json
 
@@ -111,7 +118,28 @@ module ZendeskAppsTools
         server.set :port, options[:port]
         server.set :root, options[:path]
         server.set :parameters, settings
-        server.run!
+        server.set :server, 'thin'
+        server.run! do |server|
+          if options[:ssl_cert] && options[:ssl_key]
+            server.ssl = true
+            server.ssl_options = {
+              :cert_chain_file => options[:ssl_cert],
+              :private_key_file => options[:ssl_key],
+              :verify_peer => false
+            }
+          end
+          EM.next_tick do
+            if server.ssl?
+              zat_url = "https://localhost:#{server.port}/app.js"
+            elsif server.port != DEFAULT_SERVER_PORT
+              zat_url = "http://localhost:#{server.port}/app.js"
+            else
+              zat_url = 'true'
+            end
+            puts "== ZAT Server is running"
+            puts "You may now start using ZAT by appending ?zat=#{zat_url} to your Zendesk URL"
+          end
+        end
       end
     end
 
