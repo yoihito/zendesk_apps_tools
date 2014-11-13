@@ -13,9 +13,9 @@ module ZendeskAppsTools
 
     def get_value_from_stdin(prompt, opts = {})
       options = {
-        :valid_regex => opts[:allow_empty] ? /^.*$/ : /\S+/,
-        :error_msg => 'Invalid, try again:',
-        :allow_empty => false
+        valid_regex: opts[:allow_empty] ? /^.*$/ : /\S+/,
+        error_msg: 'Invalid, try again:',
+        allow_empty: false
       }.merge(opts)
 
       while input = ask(prompt)
@@ -28,6 +28,13 @@ module ZendeskAppsTools
       end
 
       return input
+    end
+
+    def get_password_from_stdin(prompt, opts = {})
+      print "#{prompt} "
+      password = STDIN.noecho(&:gets).chomp
+      puts
+      password
     end
   end
 end
