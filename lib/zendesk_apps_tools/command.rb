@@ -223,13 +223,17 @@ module ZendeskAppsTools
     end
 
     def trust_certificate
-      puts "Trusting certificate..."
       if OS.mac?
+        puts "Trusting certificate..."
         exec_cmd("sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain \"#{localhost_ssl_cert_path}\"")
-      elsif OS.windows?
+      elsif OS.windows? && executable_exists?('certutil.exe')
+        puts "Trusting certificate..."
         exec_cmd("certutil.exe -addstore -user root \"#{localhost_ssl_cert_path}\"")
+      elsif executable_exists?('certutil') && File.exists?("#{ENV["HOME"]}/.pki/nssdb")
+        puts "Trusting certificate..."
+        exec_cmd("certutil -A -d sql:$HOME/.pki/nssdb -t C -n localhost -i \"#{localhost_ssl_cert_path}\"")
       else
-        exec_cmd("certutil -A -d sql:~/.pki/nssdb -t C -n localhost -i \"#{localhost_ssl_cert_path}\"")
+        puts "Open \"#{localhost_ssl_cert_path}\" and add it to your trusted certificate store to bypass any SSL warnings"
       end
     end
 
@@ -241,6 +245,13 @@ module ZendeskAppsTools
     def generate_and_trust_certificate
       generate_certificate
       trust_certificate
+    end
+
+    def executable_exists?(cmd)
+      ENV['PATH'].split(File::PATH_SEPARATOR).each do |path|
+        exe = File.join(path, cmd)
+        return exe if File.executable?(exe) && !File.directory?(exe)
+      end
     end
 
   end
