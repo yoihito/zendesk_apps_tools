@@ -1,5 +1,5 @@
 require 'fileutils'
-require 'zip/zip'
+require 'zip'
 require 'English'
 
 When /^I move to the app directory$/ do

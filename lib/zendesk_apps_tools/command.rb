@@ -1,5 +1,5 @@
 require 'thor'
-require 'zip/zip'
+require 'zip'
 require 'pathname'
 require 'net/http'
 require 'json'
