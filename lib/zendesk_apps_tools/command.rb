@@ -117,7 +117,12 @@ module ZendeskAppsTools
         server.set :manifest, manifest[:parameters]
         server.set :config, options[:config]
         server.set :app_id, options[:app_id]
-        server.run!
+        require 'webrick/https'
+        Rack::Handler::WEBrick.run(server,
+          Port: 4567,
+          SSLEnable: true,
+          SSLCertName: [['CN', 'localhost', OpenSSL::ASN1::PRINTABLESTRING]]
+        )
       end
     end
 
